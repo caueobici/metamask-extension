@@ -5705,17 +5705,20 @@ export default class MetamaskController extends EventEmitter {
       isMultichainOrigin: false,
     };
 
-    const approvedChains =
-      permissions[PermissionNames.permittedChains].caveats[0].value;
+    const requestedChains =
+      permissions[PermissionNames.permittedChains]?.caveats?.[0]?.value ?? [];
+
+    const requestedAccounts =
+      permissions[PermissionNames.eth_accounts]?.caveats?.[0]?.value ?? [];
 
     const caveatValueWithChains = setPermittedEthChainIds(
       newCaveatValue,
-      isSnapId(origin) ? [] : approvedChains,
+      isSnapId(origin) ? [] : requestedChains,
     );
 
     const caveatValueWithAccounts = setEthAccounts(
       caveatValueWithChains,
-      this.getPermittedAccounts(origin),
+      requestedAccounts,
     );
 
     await this.requestPermissionApproval(

@@ -77,6 +77,7 @@ export function getCommonAccounts(
     }),
   );
 
+  // TODO: get every unique acc instead of only common accounts
   return accountArrays.reduce((commonAccounts, currentAccounts) => {
     return commonAccounts.filter((account) =>
       currentAccounts.includes(account),
