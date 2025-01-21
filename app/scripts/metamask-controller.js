@@ -5695,11 +5695,6 @@ export default class MetamaskController extends EventEmitter {
       delete permissions[PermissionNames.permittedChains];
     }
 
-    const legacyApproval = await this.requestPermissionApproval(
-      origin,
-      permissions,
-    );
-
     const newCaveatValue = {
       requiredScopes: {},
       optionalScopes: {
@@ -5710,14 +5705,22 @@ export default class MetamaskController extends EventEmitter {
       isMultichainOrigin: false,
     };
 
+    const approvedChains =
+      permissions[PermissionNames.permittedChains].caveats[0].value;
+
     const caveatValueWithChains = setPermittedEthChainIds(
       newCaveatValue,
-      isSnapId(origin) ? [] : legacyApproval.approvedChainIds,
+      isSnapId(origin) ? [] : approvedChains,
     );
 
     const caveatValueWithAccounts = setEthAccounts(
       caveatValueWithChains,
-      legacyApproval.approvedAccounts,
+      this.getPermittedAccounts(origin),
+    );
+
+    await this.requestPermissionApproval(
+      origin,
+      caveatValueWithAccounts.optionalScopes,
     );
 
     return {

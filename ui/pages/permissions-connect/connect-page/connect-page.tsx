@@ -32,20 +32,13 @@ import {
 } from '../../../helpers/constants/design-system';
 import { TEST_CHAINS } from '../../../../shared/constants/network';
 import PermissionsConnectFooter from '../../../components/app/permissions-connect-footer';
-import {
-  CaveatTypes,
-  EndowmentTypes,
-  RestrictedMethods,
-} from '../../../../shared/constants/permissions';
 import { getMultichainNetwork } from '../../../selectors/multichain';
+import { decimalToPrefixedHex } from '../../../../shared/modules/conversion.utils';
 
 export type ConnectPageRequest = {
   id: string;
   origin: string;
-  permissions?: Record<
-    string,
-    { caveats?: { type: string; value: string[] }[] }
-  >;
+  permissions?: Record<string, { accounts: string[] }>;
 };
 
 export type ConnectPageProps = {
@@ -56,6 +49,57 @@ export type ConnectPageProps = {
   activeTabOrigin: string;
 };
 
+// TODO: where do we store this util function?
+export function getCommonAccounts(
+  permissions?: Record<string, { accounts: string[] }>,
+): string[] {
+  if (!permissions) {
+    return [];
+  }
+  const scopedAccountArrays = Object.values(permissions).map(
+    (obj) => obj.accounts,
+  );
+
+  if (scopedAccountArrays.length === 0) {
+    return [];
+  }
+
+  const accountArrays = scopedAccountArrays.map((array) =>
+    array.map((account) => {
+      // TODO: better name for `parts`, and refactor this;
+      const parts = account.split(':');
+      return parts.length === 3 ? parts[2] : account;
+    }),
+  );
+
+  // TODO: I need to remove the scope from these accounts `eip155:1:0xabc` -> `0xabc`
+  return accountArrays.reduce((commonAccounts, currentAccounts) => {
+    return commonAccounts.filter((account) =>
+      currentAccounts.includes(account),
+    );
+  });
+}
+
+// TODO: where do we store this util function?
+export function getRequestedChains(
+  permissions?: Record<string, { accounts: string[] }>,
+): string[] {
+  if (!permissions) {
+    return [];
+  }
+  const result: number[] = [];
+
+  for (const scope of Object.keys(permissions)) {
+    // TODO: better name for `parts`;
+    const parts = scope.split(':');
+    if (parts.length === 2 && !isNaN(Number(parts[1]))) {
+      result.push(Number(parts[1]));
+    }
+  }
+
+  return result.map((chainId) => decimalToPrefixedHex(chainId));
+}
+
 export const ConnectPage: React.FC<ConnectPageProps> = ({
   request,
   permissionsRequestId,
@@ -64,19 +108,8 @@ export const ConnectPage: React.FC<ConnectPageProps> = ({
 }) => {
   const t = useI18nContext();
 
-  const ethAccountsPermission =
-    request?.permissions?.[RestrictedMethods.eth_accounts];
-  const requestedAccounts =
-    ethAccountsPermission?.caveats?.find(
-      (caveat) => caveat.type === CaveatTypes.restrictReturnedAccounts,
-    )?.value || [];
-
-  const permittedChainsPermission =
-    request?.permissions?.[EndowmentTypes.permittedChains];
-  const requestedChainIds =
-    permittedChainsPermission?.caveats?.find(
-      (caveat) => caveat.type === CaveatTypes.restrictNetworkSwitching,
-    )?.value || [];
+  const requestedAccounts = getCommonAccounts(request?.permissions);
+  const requestedChainIds = getRequestedChains(request?.permissions);
 
   const networkConfigurations = useSelector(getNetworkConfigurationsByChainId);
   const [nonTestNetworks, testNetworks] = useMemo(
