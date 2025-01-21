@@ -3,6 +3,12 @@ import { useSelector } from 'react-redux';
 import { InternalAccount } from '@metamask/keyring-internal-api';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import { NetworkConfiguration } from '@metamask/network-controller';
+import {
+  CaipAccountId,
+  CaipChainId,
+  parseCaipAccountId,
+  parseCaipChainId,
+} from '@metamask/utils';
 import { useI18nContext } from '../../../hooks/useI18nContext';
 import {
   getSelectedInternalAccount,
@@ -65,14 +71,12 @@ export function getCommonAccounts(
   }
 
   const accountArrays = scopedAccountArrays.map((array) =>
-    array.map((account) => {
-      // TODO: better name for `parts`, and refactor this;
-      const parts = account.split(':');
-      return parts.length === 3 ? parts[2] : account;
+    array.map((accountId) => {
+      const { address } = parseCaipAccountId(accountId as CaipAccountId);
+      return address;
     }),
   );
 
-  // TODO: I need to remove the scope from these accounts `eip155:1:0xabc` -> `0xabc`
   return accountArrays.reduce((commonAccounts, currentAccounts) => {
     return commonAccounts.filter((account) =>
       currentAccounts.includes(account),
@@ -90,10 +94,10 @@ export function getRequestedChains(
   const result: number[] = [];
 
   for (const scope of Object.keys(permissions)) {
-    // TODO: better name for `parts`;
-    const parts = scope.split(':');
-    if (parts.length === 2 && !isNaN(Number(parts[1]))) {
-      result.push(Number(parts[1]));
+    const { reference } = parseCaipChainId(scope as CaipChainId);
+    if (reference !== undefined) {
+      // TODO: safely parse number
+      result.push(Number(reference));
     }
   }
 
